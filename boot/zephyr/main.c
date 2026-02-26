@@ -263,8 +263,22 @@ static void handle_late_fatal_error(void)
 }
 #endif
 
+#include <ironside/se/api.h>
+
 static void __ramfunc jump_in(struct arm_vector_table *vt)
 {
+	/* 2 entries to avoid using INLINE operations (to be removed) */
+	struct mpcconf_entry entry[2] = { 0 };
+
+	/* override 1 gives MRAM access */
+	entry[0].config0 = (uint32_t)&((NRF_MPC_Type *)0x5F081000UL)->OVERRIDE[1];
+	ironside_se_mpcconf_read(entry, 2);
+
+	/* remove MRAM access from first part of MRAM */
+	entry[0].config1 &= ~MPCCONF_ENTRY_CONFIG1_STARTADDR_Msk;
+	entry[0].config1 |= (0x0e040000 & MPCCONF_ENTRY_CONFIG1_STARTADDR_Msk);
+	ironside_se_mpcconf_write(entry, 2);
+
 #ifdef CONFIG_CPU_CORTEX_M
         __set_MSP(vt->msp);
 #endif
